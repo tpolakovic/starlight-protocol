@@ -1,8 +1,22 @@
 [package]
-name = "bevy_github_ci_template"
+name = "starlight-protocol"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
-bevy = "0.10"
+bevy = {version = "0.9.1", features = ["dynamic"]}
+bevy-inspector-egui = "0.17.0"
+rand = "0.8.5"
+derive_more = "0.99.17"
+
+[workspace]
+resolver = "2"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

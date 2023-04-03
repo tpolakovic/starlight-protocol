@@ -1,18 +1,25 @@
-extern crate bevy;
+#![allow(clippy::type_complexity)]
+#![allow(dead_code)]
 
 mod physics;
-use bevy::sprite::Mesh2dHandle;
 use physics::*;
+mod player_interaction;
+use player_interaction::*;
+mod spaceship;
+use spaceship::*;
 
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle, time::FixedTimestep};
+use bevy::{
+    prelude::*,
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+};
+use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::prelude::*;
 use bevy_inspector_egui::quick::FilterQueryInspectorPlugin;
 use rand::prelude::*;
 
 const TIME_STEP: f32 = 1. / 60.;
-// const TIME_FACTOR: f32 = 30.;
 
 const BACKGROUND_COLOR: Color = Color::hsl(221., 0.17, 0.22);
 
@@ -24,34 +31,80 @@ const N_DEBRIS: u32 = 100;
 pub(crate) fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor {
-                title: "Starlight Protocol".to_string(),
+            primary_window: Some(Window {
+                title: "Starlight Protocol".into(),
                 ..default()
-            },
+            }),
             ..default()
         }))
+        // .add_system(setup2.in_schedule(CoreSchedule::Startup))
+        // .add_system(sprite_movement.in_base_set(CoreSet::Update))
+        // .add_system(
+        //     test.in_base_set(CoreSet::PostUpdate)
+        //         .after(TransformSystem::TransformPropagate),
+        // )
+        .add_plugin(EguiPlugin)
         .register_type::<Force>()
         .register_type::<SpaceTimePos>()
-        .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(LengthFactor(1.))
-        .insert_resource(TimeFactor(30.))
+        .insert_resource(FixedTime::new_from_secs(TIME_STEP))
         .add_startup_system(setup)
-        // .add_startup_system(spawn_grid)
+        .insert_resource(ClearColor(BACKGROUND_COLOR))
+        .add_system(main_ui)
         .add_startup_system(spawn_debris)
         .add_startup_system(spawn_player)
-        .add_system(redraw_in_player_frame)
-        .add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
-                .with_system(update_acc)
-                .with_system(update_vel.after(update_acc))
-                .with_system(update_pos.after(update_vel)),
-        )
+        .add_plugin(PhysicsPlugin)
         .add_plugin(FilterQueryInspectorPlugin::<With<Player>>::default())
-        .add_plugin(FilterQueryInspectorPlugin::<With<SpaceTimePos>>::default())
         .add_system(bevy::window::close_on_esc)
         .run();
 }
+
+// #[derive(Component)]
+// enum Direction {
+//     Up,
+//     Down,
+// }
+
+// fn setup2(mut commands: Commands, asset_server: Res<AssetServer>) {
+//     commands.spawn(Camera2dBundle::default());
+//     commands.spawn((
+//         SpriteBundle {
+//             texture: asset_server.load("icon.png"),
+//             transform: Transform::from_xyz(100., 0., 0.),
+//             ..default()
+//         },
+//         Direction::Up,
+//     ));
+// }
+
+// fn test(mut q: Query<&mut GlobalTransform, With<Direction>>) {
+//     let mut gt = q.single_mut();
+//     let a = gt.affine();
+//     let m1 = a.matrix3;
+//     let m2 = Mat3A::from_scale(Vec2::new(2.0, 1.0));
+//     let a2 = Affine3A {
+//         matrix3: m1 * m2,
+//         translation: a.translation + Vec3A::new(-300., 0., 0.),
+//     };
+//     // let a3 = a * a2;
+//     *gt = a2.into();
+// }
+
+// /// The sprite is animated by changing its translation depending on the time that has passed since
+// /// the last frame.
+// fn sprite_movement(time: Res<Time>, mut sprite_position: Query<(&mut Direction, &mut Transform)>) {
+//     for (mut logo, mut transform) in &mut sprite_position {
+//         match *logo {
+//             Direction::Up => transform.translation.y += 150. * time.delta_seconds(),
+//             Direction::Down => transform.translation.y -= 150. * time.delta_seconds(),
+//         }
+
+//         if transform.translation.y > 200. {
+//             *logo = Direction::Down;
+//         } else if transform.translation.y < -200. {
+//             *logo = Direction::Up;
+//         }
+//     }
+// }
 
 // Resources
 
@@ -59,10 +112,6 @@ pub(crate) fn main() {
 #[derive(Reflect, Component, Default, InspectorOptions)]
 #[reflect(Component)]
 struct DisplayName(String);
-
-#[derive(Reflect, Component, Default, InspectorOptions)]
-#[reflect(Component)]
-struct Player;
 
 // Systems
 fn setup(mut commands: Commands) {
@@ -90,9 +139,7 @@ fn spawn_grid(
             };
             let bundle = (
                 MaterialMesh2dBundle {
-                    // mesh: meshes.add(shape::Circle::new(1.).into()).into(),
                     mesh: meshhandle.clone(),
-                    // material: materials.add(ColorMaterial::from(Color::hex("80a0c2").unwrap())),
                     material: materialhandle.clone(),
                     ..default()
                 },
@@ -149,7 +196,6 @@ fn spawn_player(
         TextureAtlas::from_grid(texture_handle, Vec2::new(50., 50.), 2, 1, None, None);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands.spawn((
-        // SpaceTimeBundle::default(),
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             sprite: TextureAtlasSprite::new(0),
@@ -162,5 +208,12 @@ fn spawn_player(
         Force::default(),
         SpaceTimeBundle::default(),
         Player,
+    ));
+    commands.spawn((
+        SpaceTimeBundle::default(),
+        Mass(1.),
+        Force::default(),
+        TransformBundle::default(),
+        StationaryFrame,
     ));
 }

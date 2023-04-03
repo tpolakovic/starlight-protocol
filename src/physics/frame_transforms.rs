@@ -1,4 +1,4 @@
-use super::{igamma, l_contract, SpaceTimeObject, SpaceTimePos, SpaceTimeVel, ThreeVector};
+use super::{igamma, l_contract, Angle, SpaceTimeObject, SpaceTimePos, SpaceTimeVel, ThreeVector};
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -36,10 +36,7 @@ macro_rules! spawn_as_spacetime_object {
                 $bundle,
                 $spobject,
                 SpaceTimeObject,
-                RenderWrapper {
-                    inner: inner,
-                    outer: outer,
-                },
+                RenderWrapper { inner, outer },
             ))
             .id();
         $commands.entity(inner).push_children(&[object]);
@@ -50,16 +47,23 @@ macro_rules! spawn_as_spacetime_object {
 /// Length-contracts every spacetime object relative to player frame.
 pub(crate) fn redraw_in_player_frame(
     q_ents: Query<(&SpaceTimePos, &SpaceTimeVel, &RenderWrapper), With<SpaceTimeObject>>,
-    mut q_transform: Query<&mut Transform, Or<(With<InnerWrapper>, With<OuterWrapper>)>>,
+    mut q_transform: Query<
+        &mut Transform,
+        (Without<Angle>, Or<(With<InnerWrapper>, With<OuterWrapper>)>),
+    >,
+    mut q_rot: Query<(&Angle, &mut Transform), (Without<InnerWrapper>, Without<OuterWrapper>)>,
 ) {
+    for (a, mut transform) in &mut q_rot {
+        transform.rotation = Quat::from_rotation_z(a.0);
+    }
+
     for (pos, vel, rw) in &q_ents {
-        let v_rel = vel.0;
-        if v_rel.r().length() > 0. {
-            let g = igamma(&v_rel.r());
-            let a = v_rel.r().angle_between(Vec2::X);
+        if vel.r().length() > 0. {
+            let g = igamma(&vel);
+            let a = vel.r().angle_between(Vec2::X);
             if let Ok(mut transform) = q_transform.get_mut(rw.outer) {
                 let z = transform.translation.z;
-                transform.translation = l_contract(&v_rel, &pos.r()).extend(z);
+                transform.translation = l_contract(vel, pos).r().extend(z);
                 transform.rotation = Quat::from_rotation_z(-a);
                 transform.scale = Vec3::new(g, 1., 0.);
             }

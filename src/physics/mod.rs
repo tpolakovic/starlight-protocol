@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, transform::TransformSystem};
 
 mod spacetime;
 pub(crate) use spacetime::*;
@@ -74,7 +74,11 @@ impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(LengthFactor(1.))
             .insert_resource(TimeFactor(1.))
-            .add_system(redraw_in_player_frame)
+            .add_system(
+                redraw_in_player_frame
+                    .in_base_set(CoreSet::PostUpdate)
+                    .after(TransformSystem::TransformPropagate),
+            )
             .add_system(update_epoch)
             .add_systems(
                 (
@@ -82,7 +86,7 @@ impl Plugin for PhysicsPlugin {
                     update_vel.after(update_acc),
                     update_pos.after(update_vel),
                 )
-                    .in_schedule(CoreSchedule::FixedUpdate),
+                    .in_base_set(CoreSet::FixedUpdate),
             );
     }
 }

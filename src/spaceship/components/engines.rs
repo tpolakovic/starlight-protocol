@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::physics::{Angle, Force, Mass};
+// use crate::physics::{Force, Mass};
 
 #[derive(Component)]
 pub(crate) struct Engine {
@@ -60,29 +60,29 @@ pub(crate) struct EngineBrakeBundle {
     vector: VectorEngine,
 }
 
-pub(crate) fn linear_engine_system(mut e_query: Query<(&Engine, &Brake, &Angle, &mut Force)>) {
-    for (e, b, a, mut f) in &mut e_query
-        .iter_mut()
-        .filter(|(e, b, _, _)| e.running | b.running)
-    {
-        let thrust = (e.running as i32 as f32) * e.thrust - (b.running as i32 as f32) * b.thrust;
-        f.0 = Vec2::from_angle(a.0) * thrust;
-    }
-}
+// pub(crate) fn linear_engine_system(mut e_query: Query<(&Engine, &Brake, &Angle, &mut Force)>) {
+//     for (e, b, a, mut f) in &mut e_query
+//         .iter_mut()
+//         .filter(|(e, b, _, _)| e.running | b.running)
+//     {
+//         let thrust = (e.running as i32 as f32) * e.thrust - (b.running as i32 as f32) * b.thrust;
+//         f.0 = Vec2::from_angle(a.0) * thrust;
+//     }
+// }
 
-pub(crate) fn vector_engine_system(
-    mut v_query: Query<(&VectorEngine, &mut Angle, &Mass)>,
-    dt: Res<FixedTime>,
-) {
-    for (ve, mut a, m) in &mut v_query {
-        match ve.mode {
-            VectorEngineMode::Right => {
-                a.0 += ve.angular_v * dt.period.as_secs_f32() * m.0.recip();
-            }
-            VectorEngineMode::Left => {
-                a.0 -= ve.angular_v * dt.period.as_secs_f32() * m.0.recip();
-            }
-            VectorEngineMode::Off => (),
-        }
-    }
-}
+// pub(crate) fn vector_engine_system(
+//     mut v_query: Query<(&VectorEngine, &mut Angle, &Mass)>,
+//     dt: Res<FixedTime>,
+// ) {
+//     for (ve, mut a, m) in &mut v_query {
+//         match ve.mode {
+//             VectorEngineMode::Right => {
+//                 a.0 += ve.angular_v * dt.period.as_secs_f32() * m.0.recip();
+//             }
+//             VectorEngineMode::Left => {
+//                 a.0 -= ve.angular_v * dt.period.as_secs_f32() * m.0.recip();
+//             }
+//             VectorEngineMode::Off => (),
+//         }
+//     }
+// }

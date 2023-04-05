@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::prelude::*;
-// use bevy_inspector_egui::quick::FilterQueryInspectorPlugin;
 
 #[derive(Reflect, Component, Default, InspectorOptions)]
 #[reflect(Component)]

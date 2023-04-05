@@ -745,6 +745,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_polyline"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0171e94f33163ec0fe824b55e379020500cfaca45642ed5c08ee03da8647faba"
+dependencies = [
+ "bevy",
+ "bitflags",
+ "naga",
+]
+
+[[package]]
 name = "bevy_ptr"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1050,6 +1061,16 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "winit",
+]
+
+[[package]]
+name = "big_space"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc806caf388a0b4814f18f625890b411ea73f167982c005a0e9c7a6cbfb588bd"
+dependencies = [
+ "bevy",
+ "bevy_polyline",
 ]
 
 [[package]]
@@ -3025,6 +3046,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_egui",
+ "big_space",
  "derive_more",
  "rand",
 ]

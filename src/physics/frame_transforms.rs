@@ -1,75 +1,25 @@
-use super::{igamma, l_contract, Angle, SpaceTimeObject, SpaceTimePos, SpaceTimeVel, ThreeVector};
-use bevy::prelude::*;
-
-#[derive(Component)]
-pub(crate) struct InnerWrapper;
-
-#[derive(Component)]
-pub(crate) struct OuterWrapper;
-
-#[derive(Component)]
-pub(crate) struct RenderWrapper {
-    pub inner: Entity,
-    pub outer: Entity,
-}
-
-/// Helper macro that wraps a bundle so that it can be correctly length-contracted.
-#[macro_export]
-macro_rules! spawn_as_spacetime_object {
-    ($commands:ident, $spobject:expr, $bundle:expr, $z:expr) => {
-        let pos = $spobject.pos.r().extend($z);
-        let outer = $commands
-            .spawn((
-                $crate::SpatialBundle {
-                    transform: $crate::Transform::from_translation(pos)
-                        .with_scale($crate::Vec3::new(1., 1., 0.)),
-                    ..default()
-                },
-                OuterWrapper,
-            ))
-            .id();
-        let inner = $commands
-            .spawn(($crate::SpatialBundle::default(), InnerWrapper))
-            .id();
-        let object = $commands
-            .spawn((
-                $bundle,
-                $spobject,
-                SpaceTimeObject,
-                RenderWrapper { inner, outer },
-            ))
-            .id();
-        $commands.entity(inner).push_children(&[object]);
-        $commands.entity(outer).push_children(&[inner]);
-    };
-}
+use super::{igamma, Contract, SpaceTimeObject, Vel};
+use bevy::{
+    math::{Mat3A, Vec3A},
+    prelude::*,
+};
 
 /// Length-contracts every spacetime object relative to player frame.
 pub(crate) fn redraw_in_player_frame(
-    q_ents: Query<(&SpaceTimePos, &SpaceTimeVel, &RenderWrapper), With<SpaceTimeObject>>,
-    mut q_transform: Query<
-        &mut Transform,
-        (Without<Angle>, Or<(With<InnerWrapper>, With<OuterWrapper>)>),
-    >,
-    mut q_rot: Query<(&Angle, &mut Transform), (Without<InnerWrapper>, Without<OuterWrapper>)>,
+    mut q: Query<(&Vel, &mut GlobalTransform), With<SpaceTimeObject>>,
 ) {
-    for (a, mut transform) in &mut q_rot {
-        transform.rotation = Quat::from_rotation_z(a.0);
-    }
-
-    for (pos, vel, rw) in &q_ents {
-        if vel.r().length() > 0. {
-            let g = igamma(&vel);
-            let a = vel.r().angle_between(Vec2::X);
-            if let Ok(mut transform) = q_transform.get_mut(rw.outer) {
-                let z = transform.translation.z;
-                transform.translation = l_contract(vel, pos).r().extend(z);
-                transform.rotation = Quat::from_rotation_z(-a);
-                transform.scale = Vec3::new(g, 1., 0.);
-            }
-            if let Ok(mut transform) = q_transform.get_mut(rw.inner) {
-                transform.rotation = Quat::from_rotation_z(a);
-            }
+    for (Vel(v), mut gt) in q.iter_mut() {
+        if v.length() > 0. {
+            let mut ga = gt.affine();
+            let g = igamma(&v);
+            ga.translation = ga.translation.contract(v);
+            let v = v.normalize();
+            let col1 = Vec3A::new(1. + (g - 1.) * v.x * v.x, (g - 1.) * v.x * v.y, 0.);
+            let col2 = Vec3A::new((g - 1.) * v.x * v.y, 1. + (g - 1.) * v.y * v.y, 0.);
+            let col3 = Vec3A::Z;
+            let smat = Mat3A::from_cols(col1, col2, col3);
+            ga.matrix3 = smat * ga.matrix3;
+            *gt = ga.into();
         }
     }
 }

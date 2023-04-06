@@ -9,7 +9,7 @@ mod spaceship;
 
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::prelude::*;
 use bevy_inspector_egui::quick::FilterQueryInspectorPlugin;
@@ -21,7 +21,7 @@ const TIME_STEP: f32 = 1. / 60.;
 const BACKGROUND_COLOR: Color = Color::hsl(221., 0.17, 0.22);
 
 const WORLD_SIZE: [f32; 2] = [2000., 1000.];
-const GRID_N: [i32; 2] = [200, 100];
+const GRID_N: [i32; 2] = [20, 10];
 
 const N_DEBRIS: u32 = 100;
 
@@ -46,7 +46,7 @@ pub(crate) fn main() {
         .add_startup_system(setup)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_system(main_ui)
-        .add_startup_system(spawn_debris)
+        .add_startup_system(spawn_grid)
         .add_startup_system(spawn_player)
         .add_plugin(PhysicsPlugin)
         .add_plugin(FilterQueryInspectorPlugin::<With<Player>>::default())
@@ -64,6 +64,37 @@ fn setup(mut commands: Commands) {
         GridCell::<i64>::default(),
         FloatingOrigin,
     ));
+}
+
+#[derive(Component, Default)]
+struct GridPoint;
+
+fn spawn_grid(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let mesh_handle: bevy::sprite::Mesh2dHandle = meshes.add(Mesh::from(shape::Quad::default())).into();
+    let material = materials.add(ColorMaterial::from(Color::WHITE));
+    for i in 0..GRID_N[0] {
+        for j in 0..GRID_N[1] {
+            let x = (i - GRID_N[0]/2) as f32 * (WORLD_SIZE[0] / GRID_N[0] as f32);
+            let y = (j - GRID_N[1]/2) as f32 * (WORLD_SIZE[1] / GRID_N[1] as f32);
+            let t = Transform::from_xyz(x, y, 0.).with_scale(Vec3::splat(9.));
+            commands.spawn((
+                MaterialMesh2dBundle {
+                    mesh: mesh_handle.clone(),
+                    transform: t,
+                    material: material.clone(),
+                    ..default()
+                },
+                Mass(1.),
+                Force::default(),
+                SpaceTimeBundle::default(),
+                GridPoint,
+            ));
+        }
+    }
 }
 
 fn spawn_debris(

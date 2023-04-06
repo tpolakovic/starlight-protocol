@@ -30,7 +30,7 @@ pub(crate) fn update_vel(
 
 /// Updates the positions of objects that have kinematics enabled.
 pub(crate) fn update_pos(
-    mut query: Query<(&Vel, &mut LocalTime, &mut Transform), Without<Player>>,
+    mut query: Query<(&Vel, &mut LocalTime, &mut Transform)>,
     time_factor: Res<TimeFactor>,
     dt: Res<FixedTime>,
 ) {

@@ -13,7 +13,8 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::prelude::*;
 use bevy_inspector_egui::quick::FilterQueryInspectorPlugin;
-use big_space::{FloatingOrigin, FloatingOriginPlugin, GridCell};
+use big_space::FloatingOrigin;
+use big_space::{FloatingOriginPlugin, GridCell};
 use rand::prelude::*;
 
 const TIME_STEP: f32 = 1. / 60.;
@@ -36,7 +37,6 @@ pub(crate) fn main() {
                     }),
                     ..default()
                 })
-                .build()
                 .disable::<TransformPlugin>(),
         )
         .add_plugin(FloatingOriginPlugin::<i64>::default())
@@ -74,12 +74,13 @@ fn spawn_grid(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mesh_handle: bevy::sprite::Mesh2dHandle = meshes.add(Mesh::from(shape::Quad::default())).into();
+    let mesh_handle: bevy::sprite::Mesh2dHandle =
+        meshes.add(Mesh::from(shape::Quad::default())).into();
     let material = materials.add(ColorMaterial::from(Color::WHITE));
     for i in 0..GRID_N[0] {
         for j in 0..GRID_N[1] {
-            let x = (i - GRID_N[0]/2) as f32 * (WORLD_SIZE[0] / GRID_N[0] as f32);
-            let y = (j - GRID_N[1]/2) as f32 * (WORLD_SIZE[1] / GRID_N[1] as f32);
+            let x = (i - GRID_N[0] / 2) as f32 * (WORLD_SIZE[0] / GRID_N[0] as f32);
+            let y = (j - GRID_N[1] / 2) as f32 * (WORLD_SIZE[1] / GRID_N[1] as f32);
             let t = Transform::from_xyz(x, y, 0.).with_scale(Vec3::splat(9.));
             commands.spawn((
                 MaterialMesh2dBundle {
@@ -124,8 +125,6 @@ fn spawn_debris(
             Mass(100.),
             Force::default(),
             SpaceTimeBundle::default(),
-            //SpaceTimeObject,
-            //GridCell::<i64>::default(),
         ));
     }
 }
@@ -152,7 +151,6 @@ fn spawn_player(
         Force::default(),
         SpaceTimeBundle::default(),
         Player,
-        //GridCell::<i64>::default(),
     ));
     commands.spawn((
         Mass(1.),
@@ -160,6 +158,5 @@ fn spawn_player(
         TransformBundle::default(),
         StationaryFrame,
         SpaceTimeBundle::default(),
-        //GridCell::<i64>::default(),
     ));
 }

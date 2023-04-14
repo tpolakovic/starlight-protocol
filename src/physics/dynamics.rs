@@ -11,7 +11,6 @@ pub(crate) fn update_acc(
     let (p_f, p_m) = q_player.single();
     let acc_p = Acc::from_force(p_m, p_f);
     for (mut acc, f, Vel(v), m) in &mut q_object {
-        // let vel = v.r();
         let acc_o = Acc::from_force(m, f);
         *acc = (acc_o - acc_p.boost(&v.neg())).boost(&v);
     }
@@ -36,7 +35,7 @@ pub(crate) fn update_pos(
 ) {
     for (Vel(v), mut t, mut tr) in &mut query {
         let g = gamma(&v);
-        t.0 += g;
+        t.0 += (g * time_factor.0 * dt.period.as_secs_f32()) as f64;
         let p = Vec3::new(g * v.x, g * v.y, 0.) * dt.period.as_secs_f32() * time_factor.0;
         tr.translation += p;
     }

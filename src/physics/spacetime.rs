@@ -18,7 +18,7 @@ pub(crate) fn gamma(v: &Vec2) -> f32 {
 
 #[derive(Reflect, Default, Component, InspectorOptions)]
 #[reflect(Component)]
-pub(crate) struct LocalTime(pub f32);
+pub(crate) struct LocalTime(pub f64);
 
 #[derive(Reflect, Default, Component, InspectorOptions, Deref)]
 #[reflect(Component)]
@@ -84,24 +84,11 @@ impl Acc {
 }
 
 #[derive(Component, Default)]
-pub(crate) struct Epoch(i32);
-
-pub(crate) fn update_epoch(mut query: Query<(&mut Epoch, &mut LocalTime)>) {
-    for (mut epoch, mut t) in &mut query {
-        if t.0 > 0.9 * f32::MAX {
-            epoch.0 += 1;
-            t.0 = 0.;
-        }
-    }
-}
-
-#[derive(Component, Default)]
 pub(crate) struct SpaceTimeObject;
 
 #[derive(Bundle, Default)]
 pub(crate) struct SpaceTimeBundle {
     pub time: LocalTime,
-    pub age: Epoch,
     pub vel: Vel,
     pub acc: Acc,
     spo: SpaceTimeObject,

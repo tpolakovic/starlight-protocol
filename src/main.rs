@@ -89,7 +89,7 @@ fn spawn_grid(
                     material: material.clone(),
                     ..default()
                 },
-                Mass(1.),
+                InverseMass::from_mass(1.),
                 Force::default(),
                 SpaceTimeBundle::default(),
                 GridPoint,
@@ -122,7 +122,7 @@ fn spawn_debris(
                 transform: Transform::from_rotation(Quat::from_rotation_z(a)).with_translation(pos),
                 ..default()
             },
-            Mass(100.),
+            InverseMass::from_mass(100.),
             Force::default(),
             SpaceTimeBundle::default(),
         ));
@@ -147,13 +147,13 @@ fn spawn_player(
                 .with_rotation(Quat::from_rotation_z(0.)),
             ..default()
         },
-        Mass(2.),
+        InverseMass::from_mass(2.),
         Force::default(),
         SpaceTimeBundle::default(),
         Player,
     ));
     commands.spawn((
-        Mass(1.),
+        InverseMass::from_mass(0.),
         Force::default(),
         TransformBundle::default(),
         StationaryFrame,

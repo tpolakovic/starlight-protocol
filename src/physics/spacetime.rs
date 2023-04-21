@@ -18,11 +18,17 @@ pub(crate) fn gamma(v: &Vec2) -> f32 {
 
 #[derive(Reflect, Default, Component, InspectorOptions)]
 #[reflect(Component)]
+/// Time in the local frame. 
+/// 
+/// This is the time that passes for an observer at rest in the local frame, or, it's the zeroth component of the three-position.
 pub(crate) struct LocalTime(pub f64);
 
 #[derive(Reflect, Default, Component, InspectorOptions, Deref)]
 #[reflect(Component)]
-pub(crate) struct Vel(pub Vec2);
+/// Two-velocity of an object in spacetime.
+/// 
+/// This is the space-like component of the three-velocity of an object.
+pub(crate) struct Velocity(pub Vec2);
 
 pub(crate) trait Contract {
     fn contract(&self, v: &Vec2) -> Self;
@@ -48,34 +54,58 @@ pub(crate) fn l_contract(u: &Vec2, r: &Vec2) -> Vec2 {
 }
 
 #[derive(Component, Default)]
-pub(crate) struct Mass(pub f32);
+/// Inverse mass of an object. 
+/// 
+/// Value of `0.` means infinite mass.
+pub(crate) struct InverseMass(pub f32);
+
+impl InverseMass {
+    pub fn from_mass(mass: f32) -> Self {
+        if mass == 0. {
+            return InverseMass(0.);
+        }
+        InverseMass(mass.recip())
+    }
+
+    pub fn to_mass(self) -> f32 {
+        if self.0 == 0. {
+            return 0.;
+        }
+        self.0.recip()
+    }
+}
 
 #[derive(Reflect, Component, Default, InspectorOptions)]
 #[reflect(Component)]
+/// Two-force applied to an object in spacetime.
 pub(crate) struct Force(pub Vec2);
 
 #[derive(Reflect, Component, Default, Deref, Clone, Copy, InspectorOptions)]
 #[reflect(Component)]
-pub(crate) struct Acc(pub Vec2);
+/// Two-acceleration of an object in spacetime.
+pub(crate) struct Acceleration(pub Vec2);
 
-impl Sub<Acc> for Acc {
+impl Sub<Acceleration> for Acceleration {
     type Output = Self;
 
-    fn sub(self, rhs: Acc) -> Self::Output {
-        Acc(self.0 - rhs.0)
+    fn sub(self, rhs: Acceleration) -> Self::Output {
+        Acceleration(self.0 - rhs.0)
     }
 }
 
-impl Acc {
+impl Acceleration {
     pub(crate) fn boost(&self, u: &Vec2) -> Self {
         let ig = igamma(u);
         let a = ig * ig * (self.0 - *u * self.0.dot(*u) * (1. - ig));
-        Acc(a)
+        Acceleration(a)
     }
 
-    pub(crate) fn from_force(m: &Mass, f: &Force) -> Self {
-        let a = f.0 * m.0.recip();
-        Acc(a)
+    /// Returns the acceleration of an object with mass `m` and force `f`.
+    /// 
+    /// Entities with zero mass will always have zero proper acceleration.
+    pub(crate) fn from_force(InverseMass(inverse_mass): &InverseMass, Force(f): &Force) -> Self {
+        let a = *f * *inverse_mass;
+        Acceleration(a)
     }
 
     pub(crate) fn r(&self) -> Vec2 {
@@ -84,13 +114,14 @@ impl Acc {
 }
 
 #[derive(Component, Default)]
+/// Marker struct used to denote that an entity is an object to be simulated in the spacetime.
 pub(crate) struct SpaceTimeObject;
 
 #[derive(Bundle, Default)]
 pub(crate) struct SpaceTimeBundle {
     pub time: LocalTime,
-    pub vel: Vel,
-    pub acc: Acc,
+    pub velocity: Velocity,
+    pub acceleration: Acceleration,
     spo: SpaceTimeObject,
     gc: GridCell<i64>,
 }

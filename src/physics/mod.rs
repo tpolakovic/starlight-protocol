@@ -32,9 +32,9 @@ impl Plugin for PhysicsPlugin {
                 .in_base_set(CoreSet::PostUpdate),))
             .add_systems(
                 (
-                    update_acc,
-                    update_vel.after(update_acc),
-                    update_pos.after(update_vel),
+                    update_acceleration,
+                    update_velocity.after(update_acceleration),
+                    update_position.after(update_velocity),
                 )
                     .in_schedule(CoreSchedule::FixedUpdate),
             );

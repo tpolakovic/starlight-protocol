@@ -3,15 +3,15 @@ use std::ops::Neg;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 
-use crate::physics::{LocalTime, Player, StationaryFrame, Vel};
+use crate::physics::{LocalTime, Player, StationaryFrame, Velocity};
 
 pub(crate) fn main_ui(
     mut contexts: EguiContexts,
     q_ppos: Query<&LocalTime, With<Player>>,
-    q_map: Query<(&Transform, &LocalTime, &Vel), With<StationaryFrame>>,
+    q_map: Query<(&Transform, &LocalTime, &Velocity), With<StationaryFrame>>,
 ) {
     let LocalTime(player_t) = q_ppos.single();
-    let (map_pos, LocalTime(map_t), Vel(map_vel)) = q_map.single();
+    let (map_pos, LocalTime(map_t), Velocity(map_vel)) = q_map.single();
     egui::Window::new("Player UI")
         .resizable(false)
         .show(contexts.ctx_mut(), |ui| {

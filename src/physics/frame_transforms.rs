@@ -1,6 +1,6 @@
 use std::f32::consts::FRAC_2_PI;
 
-use super::{igamma, Contract, SpaceTimeObject, Vel};
+use super::{igamma, Contract, SpaceTimeObject, Velocity};
 use bevy::{
     math::{Mat3A, Vec3A},
     prelude::*,
@@ -16,25 +16,25 @@ fn scale_matrix(v: &Vec2, g: f32) -> Mat3A {
 
 /// Length-contracts every spacetime object relative to player frame.
 pub(crate) fn redraw_in_player_frame(
-    mut q: Query<(&Vel, &mut GlobalTransform, Ref<Transform>), With<SpaceTimeObject>>,
+    mut q: Query<(&Velocity, &mut GlobalTransform, Ref<Transform>), With<SpaceTimeObject>>,
 ) {
-    for (Vel(v), mut gt, t) in q.iter_mut() {
-        if t.is_changed() {
-            if v.length() > 0. {
-                let mut ga = gt.affine();
-                let g = igamma(&v);
-                let a0 = ga.translation.truncate().angle_between(*v);
-                let a1 = f32::acos((f32::cos(a0) - v.length()) / (1. - f32::cos(a0) * v.length()))
-                    * a0.signum();
-                ga.translation = Vec2::from_angle(a0 - a1)
-                    .rotate(ga.translation.truncate())
-                    .extend(ga.translation.z)
+    for (Velocity(velocity), mut global_transform, transform) in q.iter_mut() {
+        if transform.is_changed() {
+            if velocity.length() > 0. {
+                let mut global_affine = global_transform.affine();
+                let g = igamma(&velocity);
+                let angle = global_affine.translation.truncate().angle_between(*velocity);
+                let abberated_angle = f32::acos((f32::cos(angle) - velocity.length()) / (1. - f32::cos(angle) * velocity.length()))
+                    * angle.signum();
+                global_affine.translation = Vec2::from_angle(angle - abberated_angle)
+                    .rotate(global_affine.translation.truncate())
+                    .extend(global_affine.translation.z)
                     .into();
-                ga.translation = ga.translation.contract(v);
-                let smat = scale_matrix(v, g);
-                let smat2 = scale_matrix(&v.perp(), 1. - f32::asin(v.length()) * FRAC_2_PI);
-                ga.matrix3 = smat2 * Mat3A::from_rotation_z(a0 - a1) * smat * ga.matrix3;
-                *gt = ga.into();
+                global_affine.translation = global_affine.translation.contract(velocity);
+                let smat = scale_matrix(velocity, g);
+                let smat2 = scale_matrix(&velocity.perp(), 1. - f32::asin(velocity.length()) * FRAC_2_PI);
+                global_affine.matrix3 = smat2 * Mat3A::from_rotation_z(angle - abberated_angle) * smat * global_affine.matrix3;
+                *global_transform = global_affine.into();
             }
         }
     }

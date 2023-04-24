@@ -26,7 +26,7 @@ pub(crate) fn main_ui(
             ui.label(player_pos);
 
             let v = map_vel.neg();
-            let player_vel = format!("Player vel: {:.2} + {:.2} = {:.2}", v.x, v.y, v.length());
+            let player_vel = format!("Player vel: |{:.2}, {:.2}| = {:.2}", v.x, v.y, v.length());
             ui.label(player_vel);
         });
 }

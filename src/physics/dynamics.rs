@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::ops::Neg;
 
-use super::{gamma, Acceleration, Force, LocalTime, InverseMass, Player, TimeFactor, Velocity};
+use super::{gamma, Acceleration, Force, InverseMass, LocalTime, Player, TimeFactor, Velocity};
 
 /// Updates the accelerations of entities' forces.
 pub(crate) fn update_acceleration(
@@ -10,9 +10,10 @@ pub(crate) fn update_acceleration(
 ) {
     let (player_force, player_inverse_mass) = query_player.single();
     let player_acceleration = Acceleration::from_force(player_inverse_mass, player_force);
-    for (mut acceleration, force, Velocity(velocity), inverse_mass) in &mut query_object {
+    for (mut total_acceleration, force, Velocity(velocity), inverse_mass) in &mut query_object {
         let object_acceleration = Acceleration::from_force(inverse_mass, force);
-        *acceleration = (object_acceleration - player_acceleration.boost(&velocity.neg())).boost(&velocity);
+        *total_acceleration =
+            (object_acceleration - player_acceleration.boost(&velocity.neg())).boost(&velocity);
     }
 }
 
@@ -36,7 +37,15 @@ pub(crate) fn update_position(
     for (Velocity(velocity), mut time, mut transform) in &mut query {
         let g = gamma(velocity);
         time.0 += (g * time_factor.0 * dt.period.as_secs_f32()) as f64;
-        let position_delta = Vec3::new(g * velocity.x, g * velocity.y, 0.) * dt.period.as_secs_f32() * time_factor.0;
+        let position_delta =
+            Vec3::new(g * velocity.x, g * velocity.y, 0.) * dt.period.as_secs_f32() * time_factor.0;
         transform.translation += position_delta;
+    }
+}
+
+/// Clears all forces at the end of the simulation frame.
+pub(crate) fn clear_forces(mut query: Query<&mut Force>) {
+    for mut force in &mut query.iter_mut() {
+        *force = Force::ZERO;
     }
 }

@@ -13,6 +13,8 @@ pub(crate) use dynamics::*;
 mod objects;
 pub(crate) use objects::*;
 
+use crate::spaceship::components::engines::linear_engine_system;
+
 #[derive(Resource)]
 pub(crate) struct TimeFactor(pub f32);
 
@@ -32,10 +34,13 @@ impl Plugin for PhysicsPlugin {
                 .in_base_set(CoreSet::PostUpdate),))
             .add_systems(
                 (
+                    linear_engine_system,
                     update_acceleration,
-                    update_velocity.after(update_acceleration),
-                    update_position.after(update_velocity),
+                    update_velocity,
+                    update_position,
+                    clear_forces,
                 )
+                    .chain()
                     .in_schedule(CoreSchedule::FixedUpdate),
             );
     }

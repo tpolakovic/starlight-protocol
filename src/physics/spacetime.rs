@@ -18,15 +18,15 @@ pub(crate) fn gamma(v: &Vec2) -> f32 {
 
 #[derive(Reflect, Default, Component, InspectorOptions)]
 #[reflect(Component)]
-/// Time in the local frame. 
-/// 
+/// Time in the local frame.
+///
 /// This is the time that passes for an observer at rest in the local frame, or, it's the zeroth component of the three-position.
 pub(crate) struct LocalTime(pub f64);
 
-#[derive(Reflect, Default, Component, InspectorOptions, Deref)]
+#[derive(Reflect, Default, Deref, Clone, Copy, Component, InspectorOptions)]
 #[reflect(Component)]
 /// Two-velocity of an object in spacetime.
-/// 
+///
 /// This is the space-like component of the three-velocity of an object.
 pub(crate) struct Velocity(pub Vec2);
 
@@ -53,9 +53,9 @@ pub(crate) fn l_contract(u: &Vec2, r: &Vec2) -> Vec2 {
     Vec2::new(ro.x, ro.y)
 }
 
-#[derive(Component, Default)]
-/// Inverse mass of an object. 
-/// 
+#[derive(Component, Default, Deref, Clone, Copy)]
+/// Inverse mass of an object.
+///
 /// Value of `0.` means infinite mass.
 pub(crate) struct InverseMass(pub f32);
 
@@ -80,6 +80,10 @@ impl InverseMass {
 /// Two-force applied to an object in spacetime.
 pub(crate) struct Force(pub Vec2);
 
+impl Force {
+    pub const ZERO: Self = Force(Vec2::ZERO);
+}
+
 #[derive(Reflect, Component, Default, Deref, Clone, Copy, InspectorOptions)]
 #[reflect(Component)]
 /// Two-acceleration of an object in spacetime.
@@ -101,15 +105,11 @@ impl Acceleration {
     }
 
     /// Returns the acceleration of an object with mass `m` and force `f`.
-    /// 
+    ///
     /// Entities with zero mass will always have zero proper acceleration.
     pub(crate) fn from_force(InverseMass(inverse_mass): &InverseMass, Force(f): &Force) -> Self {
         let a = *f * *inverse_mass;
         Acceleration(a)
-    }
-
-    pub(crate) fn r(&self) -> Vec2 {
-        self.0
     }
 }
 
@@ -117,11 +117,17 @@ impl Acceleration {
 /// Marker struct used to denote that an entity is an object to be simulated in the spacetime.
 pub(crate) struct SpaceTimeObject;
 
+#[derive(Reflect, Component, Default, InspectorOptions)]
+pub(crate) struct RealGlobalTransform(pub GlobalTransform);
+
 #[derive(Bundle, Default)]
 pub(crate) struct SpaceTimeBundle {
     pub time: LocalTime,
     pub velocity: Velocity,
     pub acceleration: Acceleration,
-    spo: SpaceTimeObject,
-    gc: GridCell<i64>,
+    pub force: Force,
+    pub inverse_mass: InverseMass,
+    pub real_global_transform: RealGlobalTransform,
+    pub spo: SpaceTimeObject,
+    pub gc: GridCell<i64>,
 }

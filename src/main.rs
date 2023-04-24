@@ -5,6 +5,7 @@ mod physics;
 use physics::*;
 mod player_interaction;
 use player_interaction::*;
+use spaceship::components::engines::Engine;
 mod spaceship;
 
 use std::f32::consts::PI;
@@ -41,7 +42,7 @@ pub(crate) fn main() {
         )
         .add_plugin(FloatingOriginPlugin::<i64>::default())
         .add_plugin(EguiPlugin)
-        .register_type::<Force>()
+        .register_type::<Engine>()
         .insert_resource(FixedTime::new_from_secs(TIME_STEP))
         .add_startup_system(setup)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
@@ -89,9 +90,10 @@ fn spawn_grid(
                     material: material.clone(),
                     ..default()
                 },
-                InverseMass::from_mass(1.),
-                Force::default(),
-                SpaceTimeBundle::default(),
+                SpaceTimeBundle {
+                    inverse_mass: InverseMass::from_mass(1.),
+                    ..default()
+                },
                 GridPoint,
             ));
         }
@@ -122,9 +124,10 @@ fn spawn_debris(
                 transform: Transform::from_rotation(Quat::from_rotation_z(a)).with_translation(pos),
                 ..default()
             },
-            InverseMass::from_mass(100.),
-            Force::default(),
-            SpaceTimeBundle::default(),
+            SpaceTimeBundle {
+                inverse_mass: InverseMass::from_mass(100.),
+                ..default()
+            },
         ));
     }
 }
@@ -143,20 +146,23 @@ fn spawn_player(
             texture_atlas: texture_atlas_handle,
             sprite: TextureAtlasSprite::new(0),
             transform: Transform::from_translation(Vec3::new(0., 0., 10.))
-                .with_scale(Vec3::new(1., 1., 0.))
+                .with_scale(Vec3::new(1., 1., 1.))
                 .with_rotation(Quat::from_rotation_z(0.)),
             ..default()
         },
-        InverseMass::from_mass(2.),
-        Force::default(),
-        SpaceTimeBundle::default(),
+        SpaceTimeBundle {
+            inverse_mass: InverseMass::from_mass(2.),
+            ..default()
+        },
+        Engine::default(),
         Player,
     ));
     commands.spawn((
-        InverseMass::from_mass(0.),
-        Force::default(),
         TransformBundle::default(),
         StationaryFrame,
-        SpaceTimeBundle::default(),
+        SpaceTimeBundle {
+            inverse_mass: InverseMass::from_mass(0.),
+            ..default()
+        },
     ));
 }

@@ -1,7 +1,11 @@
 use bevy::prelude::*;
 use std::ops::Neg;
 
-use super::{gamma, Acceleration, Force, InverseMass, LocalTime, Player, TimeFactor, Velocity};
+use super::{
+    objects::Player,
+    spacetime::{gamma, Acceleration, Force, InverseMass, LocalTime, Velocity, Boost},
+    TimeFactor,
+};
 
 /// Updates the accelerations of entities' forces.
 pub(crate) fn update_acceleration(

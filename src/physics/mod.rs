@@ -1,19 +1,20 @@
 use bevy::prelude::*;
-
-mod spacetime;
 use big_space::propagation::propagate_transforms;
-pub(crate) use spacetime::*;
 
-mod frame_transforms;
-pub(crate) use frame_transforms::*;
+pub(crate) mod spacetime;
 
-mod dynamics;
-pub(crate) use dynamics::*;
+pub(crate) mod frame_transforms;
 
-mod objects;
-pub(crate) use objects::*;
+pub(crate) mod dynamics;
+
+pub(crate) mod objects;
 
 use crate::spaceship::components::engines::linear_engine_system;
+
+use self::{
+    dynamics::{clear_forces, update_acceleration, update_position, update_velocity},
+    frame_transforms::redraw_in_player_frame,
+};
 
 #[derive(Resource)]
 pub(crate) struct TimeFactor(pub f32);

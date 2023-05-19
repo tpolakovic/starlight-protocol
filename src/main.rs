@@ -2,21 +2,27 @@
 #![allow(dead_code)]
 
 mod physics;
-use physics::*;
 mod player_interaction;
-use player_interaction::*;
-use spaceship::components::engines::Engine;
 mod spaceship;
 
+use physics::{
+    objects::{Player, StationaryFrame},
+    spacetime::{InverseMass, SpaceTimeBundle},
+    PhysicsPlugin,
+};
+use player_interaction::main_ui;
+use spaceship::components::engines::Engine;
+
+use rand::prelude::*;
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{
+    prelude::*,
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+};
 use bevy_egui::EguiPlugin;
-use bevy_inspector_egui::prelude::*;
-use bevy_inspector_egui::quick::FilterQueryInspectorPlugin;
-use big_space::FloatingOrigin;
-use big_space::{FloatingOriginPlugin, GridCell};
-use rand::prelude::*;
+use bevy_inspector_egui::{prelude::*, quick::FilterQueryInspectorPlugin};
+use big_space::{FloatingOrigin, FloatingOriginPlugin, GridCell};
 
 const TIME_STEP: f32 = 1. / 60.;
 
@@ -75,8 +81,7 @@ fn spawn_grid(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mesh_handle: bevy::sprite::Mesh2dHandle =
-        meshes.add(Mesh::from(shape::Quad::default())).into();
+    let mesh_handle: Mesh2dHandle = meshes.add(Mesh::from(shape::Quad::default())).into();
     let material = materials.add(ColorMaterial::from(Color::WHITE));
     for i in 0..GRID_N[0] {
         for j in 0..GRID_N[1] {

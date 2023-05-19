@@ -1,10 +1,11 @@
 use std::f32::consts::FRAC_2_PI;
 
-use super::{igamma, Contract, RealGlobalTransform, SpaceTimeObject, Velocity};
 use bevy::{
     math::{Mat3A, Vec3A},
     prelude::*,
 };
+
+use super::spacetime::{igamma, Contract, RealGlobalTransform, SpaceTimeObject, Velocity};
 
 fn scale_matrix(v: &Vec2, g: f32) -> Mat3A {
     let vn = v.normalize();
@@ -34,6 +35,7 @@ pub(crate) fn redraw_in_player_frame(
             if velocity.length() > 0. {
                 let mut global_affine = global_transform.affine();
                 let g = igamma(&velocity);
+
                 let angle = global_affine
                     .translation
                     .truncate()
@@ -42,20 +44,24 @@ pub(crate) fn redraw_in_player_frame(
                     (f32::cos(angle) - velocity.length())
                         / (1. - f32::cos(angle) * velocity.length()),
                 ) * angle.signum();
+
                 global_affine.translation = Vec2::from_angle(angle - abberated_angle)
                     .rotate(global_affine.translation.truncate())
                     .extend(global_affine.translation.z)
                     .into();
                 global_affine.translation = global_affine.translation.contract(velocity);
+
                 let smat = scale_matrix(velocity, g);
                 let smat2 = scale_matrix(
                     &velocity.perp(),
                     1. - f32::asin(velocity.length()) * FRAC_2_PI,
                 );
+
                 global_affine.matrix3 = smat2
                     * Mat3A::from_rotation_z(angle - abberated_angle)
                     * smat
                     * global_affine.matrix3;
+
                 *global_transform = global_affine.into();
             }
         }

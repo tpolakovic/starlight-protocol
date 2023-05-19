@@ -34,23 +34,18 @@ pub(crate) trait Contract {
     fn contract(&self, v: &Vec2) -> Self;
 }
 
+pub(crate) trait Boost {
+    fn boost(&self, v: &Vec2) -> Self;
+}
+
 impl Contract for Vec3A {
     fn contract(&self, v: &Vec2) -> Self {
-        let u = Vec3A::new(v.x, v.y, 0.);
+        let u = Vec3A::new(v.x, v.y, self.z);
         let g = igamma(v);
         let p = self.project_onto(u) * g;
         let r = self.reject_from(u);
         p + r
     }
-}
-
-/// Contracts the vector `r` when moving at velocity `u`.
-pub(crate) fn l_contract(u: &Vec2, r: &Vec2) -> Vec2 {
-    let g = igamma(u);
-    let rp = r.project_onto(*u) * g;
-    let rr = r.reject_from(*u);
-    let ro = rp + rr;
-    Vec2::new(ro.x, ro.y)
 }
 
 #[derive(Component, Default, Deref, Clone, Copy)]
@@ -98,17 +93,19 @@ impl Sub<Acceleration> for Acceleration {
 }
 
 impl Acceleration {
-    pub(crate) fn boost(&self, u: &Vec2) -> Self {
-        let ig = igamma(u);
-        let a = ig * ig * (self.0 - *u * self.0.dot(*u) * (1. - ig));
-        Acceleration(a)
-    }
-
     /// Returns the acceleration of an object with mass `m` and force `f`.
     ///
     /// Entities with zero mass will always have zero proper acceleration.
     pub(crate) fn from_force(InverseMass(inverse_mass): &InverseMass, Force(f): &Force) -> Self {
         let a = *f * *inverse_mass;
+        Acceleration(a)
+    }
+}
+
+impl Boost for Acceleration {
+    fn boost(&self, v: &Vec2) -> Self {
+        let ig = igamma(v);
+        let a = ig * ig * (self.0 - *v * self.0.dot(*v) * (1. - ig));
         Acceleration(a)
     }
 }

@@ -3,7 +3,10 @@ use std::ops::Neg;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 
-use crate::physics::{LocalTime, Player, StationaryFrame, Velocity};
+use crate::physics::{
+    objects::{Player, StationaryFrame},
+    spacetime::{LocalTime, Velocity},
+};
 
 pub(crate) fn main_ui(
     mut contexts: EguiContexts,

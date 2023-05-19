@@ -1,21 +1,8 @@
-use bevy::prelude::*;
+use std::ops::Sub;
+
+use bevy::{math::Vec3A, prelude::*};
 use bevy_inspector_egui::prelude::*;
-
-// A vector that transforms correctly under Lorentz transformations in 2+1D spacetime.
-pub(crate) trait ThreeVector {
-    fn t(&self) -> f32;
-    fn r(&self) -> Vec2;
-}
-
-impl ThreeVector for Vec3 {
-    fn t(&self) -> f32 {
-        self.x
-    }
-
-    fn r(&self) -> Vec2 {
-        Vec2::new(self.y, self.z)
-    }
-}
+use big_space::GridCell;
 
 #[inline]
 /// Inverse of Lorentz factor.
@@ -29,87 +16,115 @@ pub(crate) fn gamma(v: &Vec2) -> f32 {
     igamma(v).recip()
 }
 
-/// Contracts the vector `v` when moving at velocity `u`.
-pub(crate) fn l_contract(u: &Vec3, v: &Vec2) -> Vec2 {
-    let u = u.r();
-    let g = igamma(&u);
-    let vp = v.project_onto(u) * g;
-    let vr = v.reject_from(u);
-    vp + vr
+#[derive(Reflect, Default, Component, InspectorOptions)]
+#[reflect(Component)]
+/// Time in the local frame.
+///
+/// This is the time that passes for an observer at rest in the local frame, or, it's the zeroth component of the three-position.
+pub(crate) struct LocalTime(pub f64);
+
+#[derive(Reflect, Default, Deref, Clone, Copy, Component, InspectorOptions)]
+#[reflect(Component)]
+/// Two-velocity of an object in spacetime.
+///
+/// This is the space-like component of the three-velocity of an object.
+pub(crate) struct Velocity(pub Vec2);
+
+pub(crate) trait Contract {
+    fn contract(&self, v: &Vec2) -> Self;
 }
 
-macro_rules! sp_deref_impl {
-    ($spo:ty) => {
-        impl std::ops::Deref for $spo {
-            type Target = Vec3;
+pub(crate) trait Boost {
+    fn boost(&self, v: &Vec2) -> Self;
+}
 
-            fn deref(&self) -> &Vec3 {
-                &self.0
-            }
+impl Contract for Vec3A {
+    fn contract(&self, v: &Vec2) -> Self {
+        let u = Vec3A::new(v.x, v.y, self.z);
+        let g = igamma(v);
+        let p = self.project_onto(u) * g;
+        let r = self.reject_from(u);
+        p + r
+    }
+}
+
+#[derive(Component, Default, Deref, Clone, Copy)]
+/// Inverse mass of an object.
+///
+/// Value of `0.` means infinite mass.
+pub(crate) struct InverseMass(pub f32);
+
+impl InverseMass {
+    pub fn from_mass(mass: f32) -> Self {
+        if mass == 0. {
+            return InverseMass(0.);
         }
-    };
-}
+        InverseMass(mass.recip())
+    }
 
-#[derive(Reflect, Component, Default, InspectorOptions)]
-#[reflect(Component)]
-pub(crate) struct SpaceTimePos(pub Vec3);
-sp_deref_impl!(SpaceTimePos);
-
-#[derive(Reflect, Component, InspectorOptions)]
-#[reflect(Component)]
-pub(crate) struct SpaceTimeVel(pub Vec3);
-sp_deref_impl!(SpaceTimeVel);
-
-impl Default for SpaceTimeVel {
-    fn default() -> Self {
-        SpaceTimeVel(Vec3::new(1., 0., 0.))
+    pub fn to_mass(self) -> f32 {
+        if self.0 == 0. {
+            return 0.;
+        }
+        self.0.recip()
     }
 }
 
 #[derive(Reflect, Component, Default, InspectorOptions)]
 #[reflect(Component)]
-pub(crate) struct SpaceTimeAcc(pub Vec2);
+/// Two-force applied to an object in spacetime.
+pub(crate) struct Force(pub Vec2);
 
-impl SpaceTimeAcc {
-    pub(crate) fn boost(&self, u: &SpaceTimeVel) -> Self {
-        let u2 = u.r();
-        let ig = igamma(&u2);
-        let a = ig * ig * (self.0 - self.0.dot(u2) * u2 * (1. - ig));
-        SpaceTimeAcc(a)
-    }
+impl Force {
+    pub const ZERO: Self = Force(Vec2::ZERO);
+}
 
-    #[inline]
-    pub(crate) fn from_force(m: &Mass, f: &Force) -> Self {
-        let a = f.0 * m.0.recip();
-        SpaceTimeAcc(a)
+#[derive(Reflect, Component, Default, Deref, Clone, Copy, InspectorOptions)]
+#[reflect(Component)]
+/// Two-acceleration of an object in spacetime.
+pub(crate) struct Acceleration(pub Vec2);
+
+impl Sub<Acceleration> for Acceleration {
+    type Output = Self;
+
+    fn sub(self, rhs: Acceleration) -> Self::Output {
+        Acceleration(self.0 - rhs.0)
     }
 }
+
+impl Acceleration {
+    /// Returns the acceleration of an object with mass `m` and force `f`.
+    ///
+    /// Entities with zero mass will always have zero proper acceleration.
+    pub(crate) fn from_force(InverseMass(inverse_mass): &InverseMass, Force(f): &Force) -> Self {
+        let a = *f * *inverse_mass;
+        Acceleration(a)
+    }
+}
+
+impl Boost for Acceleration {
+    fn boost(&self, v: &Vec2) -> Self {
+        let ig = igamma(v);
+        let a = ig * ig * (self.0 - *v * self.0.dot(*v) * (1. - ig));
+        Acceleration(a)
+    }
+}
+
+#[derive(Component, Default)]
+/// Marker struct used to denote that an entity is an object to be simulated in the spacetime.
+pub(crate) struct SpaceTimeObject;
+
+#[derive(Reflect, Component, Default, InspectorOptions)]
+pub(crate) struct RealGlobalTransform(pub GlobalTransform);
 
 #[derive(Bundle, Default)]
 pub(crate) struct SpaceTimeBundle {
-    pub pos: SpaceTimePos,
-    pub vel: SpaceTimeVel,
-    pub acc: SpaceTimeAcc,
-    pub angle: Angle,
+    pub time: LocalTime,
+    pub velocity: Velocity,
+    pub acceleration: Acceleration,
+    pub force: Force,
+    pub inverse_mass: InverseMass,
+    pub real_global_transform: RealGlobalTransform,
+    pub spo: SpaceTimeObject,
+    pub gc: GridCell<i64>,
 }
-
-#[derive(Component, Default)]
-pub(crate) struct Mass(pub f32);
-
-#[derive(Reflect, Component, Default, InspectorOptions)]
-#[reflect(Component)]
-pub(crate) struct Force(pub Vec2);
-
-impl std::ops::Deref for Force {
-    type Target = Vec2;
-
-    fn deref(&self) -> &Vec2 {
-        &self.0
-    }
-}
-
-#[derive(Component, Default)]
-pub(crate) struct Angle(pub f32);
-
-#[derive(Component, Default)]
-pub(crate) struct SpaceTimeObject;

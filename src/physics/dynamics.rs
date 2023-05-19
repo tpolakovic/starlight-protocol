@@ -1,42 +1,55 @@
-use crate::physics::{
-    gamma, Force, Mass, SpaceTimeAcc, SpaceTimePos, SpaceTimeVel, ThreeVector, TimeFactor,
-};
-use crate::{Player, TIME_STEP};
 use bevy::prelude::*;
+use std::ops::Neg;
 
-/// Updates the accelerations of entities forces.
-pub(crate) fn update_acc(
-    mut q_object: Query<(&mut SpaceTimeAcc, &Force, &SpaceTimeVel, &Mass), Without<Player>>,
-    q_player: Query<(&Force, &Mass), With<Player>>,
+use super::{
+    objects::Player,
+    spacetime::{gamma, Acceleration, Force, InverseMass, LocalTime, Velocity, Boost},
+    TimeFactor,
+};
+
+/// Updates the accelerations of entities' forces.
+pub(crate) fn update_acceleration(
+    mut query_object: Query<(&mut Acceleration, &Force, &Velocity, &InverseMass), Without<Player>>,
+    query_player: Query<(&Force, &InverseMass), With<Player>>,
 ) {
-    let (p_f, p_m) = q_player.single();
-    let acc_p = SpaceTimeAcc::from_force(p_m, p_f);
-    for (mut acc, f, vel, m) in &mut q_object {
-        let acc_o = SpaceTimeAcc::from_force(m, f);
-        *acc = SpaceTimeAcc(acc_o.0 - acc_p.0).boost(&vel);
+    let (player_force, player_inverse_mass) = query_player.single();
+    let player_acceleration = Acceleration::from_force(player_inverse_mass, player_force);
+    for (mut total_acceleration, force, Velocity(velocity), inverse_mass) in &mut query_object {
+        let object_acceleration = Acceleration::from_force(inverse_mass, force);
+        *total_acceleration =
+            (object_acceleration - player_acceleration.boost(&velocity.neg())).boost(&velocity);
     }
 }
 
 /// Updates the velocities of entities.
-pub(crate) fn update_vel(
-    mut query: Query<(&SpaceTimeAcc, &mut SpaceTimeVel), Without<Player>>,
+pub(crate) fn update_velocity(
+    mut query: Query<(&Acceleration, &mut Velocity), Without<Player>>,
     time_factor: Res<TimeFactor>,
+    dt: Res<FixedTime>,
 ) {
-    for (acc, mut vel) in &mut query {
-        let new_vel = vel.0.r() + acc.0 * TIME_STEP * time_factor.0;
-        *vel = SpaceTimeVel(Vec3::new(vel.t(), new_vel.x, new_vel.y));
+    for (&Acceleration(acceleration), mut velocity) in &mut query {
+        velocity.0 += acceleration * dt.period.as_secs_f32() * time_factor.0;
     }
 }
 
-/// Updates the positions of objects that have kinematics enabled.
-pub(crate) fn update_pos(
-    mut query: Query<(&SpaceTimeVel, &mut SpaceTimePos)>,
+/// Updates the positions of objects.
+pub(crate) fn update_position(
+    mut query: Query<(&Velocity, &mut LocalTime, &mut Transform)>,
     time_factor: Res<TimeFactor>,
+    dt: Res<FixedTime>,
 ) {
-    for (vel, mut pos) in &mut query {
-        let v = vel.0;
-        let g = gamma(&v.r());
-        let newpos = pos.0 + g * v * TIME_STEP * time_factor.0;
-        *pos = SpaceTimePos(newpos);
+    for (Velocity(velocity), mut time, mut transform) in &mut query {
+        let g = gamma(velocity);
+        time.0 += (g * time_factor.0 * dt.period.as_secs_f32()) as f64;
+        let position_delta =
+            Vec3::new(g * velocity.x, g * velocity.y, 0.) * dt.period.as_secs_f32() * time_factor.0;
+        transform.translation += position_delta;
+    }
+}
+
+/// Clears all forces at the end of the simulation frame.
+pub(crate) fn clear_forces(mut query: Query<&mut Force>) {
+    for mut force in &mut query.iter_mut() {
+        *force = Force::ZERO;
     }
 }

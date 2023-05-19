@@ -1,70 +1,68 @@
-use super::{igamma, l_contract, SpaceTimeObject, SpaceTimePos, SpaceTimeVel, ThreeVector};
-use bevy::prelude::*;
+use std::f32::consts::FRAC_2_PI;
 
-#[derive(Component)]
-pub(crate) struct InnerWrapper;
+use bevy::{
+    math::{Mat3A, Vec3A},
+    prelude::*,
+};
 
-#[derive(Component)]
-pub(crate) struct OuterWrapper;
+use super::spacetime::{igamma, Contract, RealGlobalTransform, SpaceTimeObject, Velocity};
 
-#[derive(Component)]
-pub(crate) struct RenderWrapper {
-    pub inner: Entity,
-    pub outer: Entity,
-}
-
-/// Helper macro that wraps a bundle so that it can be correctly length-contracted.
-#[macro_export]
-macro_rules! spawn_as_spacetime_object {
-    ($commands:ident, $spobject:expr, $bundle:expr, $z:expr) => {
-        let pos = $spobject.pos.r().extend($z);
-        let outer = $commands
-            .spawn((
-                $crate::SpatialBundle {
-                    transform: $crate::Transform::from_translation(pos)
-                        .with_scale($crate::Vec3::new(1., 1., 0.)),
-                    ..default()
-                },
-                OuterWrapper,
-            ))
-            .id();
-        let inner = $commands
-            .spawn(($crate::SpatialBundle::default(), InnerWrapper))
-            .id();
-        let object = $commands
-            .spawn((
-                $bundle,
-                $spobject,
-                SpaceTimeObject,
-                RenderWrapper {
-                    inner: inner,
-                    outer: outer,
-                },
-            ))
-            .id();
-        $commands.entity(inner).push_children(&[object]);
-        $commands.entity(outer).push_children(&[inner]);
-    };
+fn scale_matrix(v: &Vec2, g: f32) -> Mat3A {
+    let vn = v.normalize();
+    let col1 = Vec3A::new(1. + (g - 1.) * vn.x * vn.x, (g - 1.) * vn.x * vn.y, 0.);
+    let col2 = Vec3A::new((g - 1.) * vn.x * vn.y, 1. + (g - 1.) * vn.y * vn.y, 0.);
+    let col3 = Vec3A::Z;
+    Mat3A::from_cols(col1, col2, col3)
 }
 
 /// Length-contracts every spacetime object relative to player frame.
 pub(crate) fn redraw_in_player_frame(
-    q_ents: Query<(&SpaceTimePos, &SpaceTimeVel, &RenderWrapper), With<SpaceTimeObject>>,
-    mut q_transform: Query<&mut Transform, Or<(With<InnerWrapper>, With<OuterWrapper>)>>,
+    mut q: Query<
+        (
+            &Velocity,
+            &mut GlobalTransform,
+            &mut RealGlobalTransform,
+            Ref<Transform>,
+        ),
+        With<SpaceTimeObject>,
+    >,
 ) {
-    for (pos, vel, rw) in &q_ents {
-        let v_rel = vel.0;
-        if v_rel.r().length() > 0. {
-            let g = igamma(&v_rel.r());
-            let a = v_rel.r().angle_between(Vec2::X);
-            if let Ok(mut transform) = q_transform.get_mut(rw.outer) {
-                let z = transform.translation.z;
-                transform.translation = l_contract(&v_rel, &pos.r()).extend(z);
-                transform.rotation = Quat::from_rotation_z(-a);
-                transform.scale = Vec3::new(g, 1., 0.);
-            }
-            if let Ok(mut transform) = q_transform.get_mut(rw.inner) {
-                transform.rotation = Quat::from_rotation_z(a);
+    for (Velocity(velocity), mut global_transform, mut real_global_transform, transform) in
+        q.iter_mut()
+    {
+        if transform.is_changed() {
+            real_global_transform.0 = *global_transform;
+            if velocity.length() > 0. {
+                let mut global_affine = global_transform.affine();
+                let g = igamma(&velocity);
+
+                let angle = global_affine
+                    .translation
+                    .truncate()
+                    .angle_between(*velocity);
+                let abberated_angle = f32::acos(
+                    (f32::cos(angle) - velocity.length())
+                        / (1. - f32::cos(angle) * velocity.length()),
+                ) * angle.signum();
+
+                global_affine.translation = Vec2::from_angle(angle - abberated_angle)
+                    .rotate(global_affine.translation.truncate())
+                    .extend(global_affine.translation.z)
+                    .into();
+                global_affine.translation = global_affine.translation.contract(velocity);
+
+                let smat = scale_matrix(velocity, g);
+                let smat2 = scale_matrix(
+                    &velocity.perp(),
+                    1. - f32::asin(velocity.length()) * FRAC_2_PI,
+                );
+
+                global_affine.matrix3 = smat2
+                    * Mat3A::from_rotation_z(angle - abberated_angle)
+                    * smat
+                    * global_affine.matrix3;
+
+                *global_transform = global_affine.into();
             }
         }
     }
